@@ -1,23 +1,26 @@
 package when.metrics;
 
-import when.metrics.controller.UserController;
-import when.metrics.vo.UserVo;
-
 /**
  * Hello world!
  */
 public class App {
     public static void main(String[] args) throws Exception {
-        UserController controller = new UserController();
-        for (int i = 0; i < 5; i++) {
-            controller.login("1", "2");
-        }
+        MetricsStore metricsStore = new FakeMetricsStore();
+        ConsoleReporter consoleReporter = new ConsoleReporter(metricsStore);
+        consoleReporter.startRepeatedReport(60, 60);
 
-        Thread.sleep(15000);
+        EmailReporter emailReporter = new EmailReporter(metricsStore);
+        emailReporter.addToAddress("123@test.com");
+        emailReporter.startDailyReport();
 
-        for (int i = 0; i < 5; i++) {
-            controller.login("1", "2");
-            controller.register(new UserVo());
-        }
+        MetricsCollector metricsCollector = new MetricsCollector(metricsStore);
+        metricsCollector.recordRequest(new RequestInfo("register", 123, 10234));
+        metricsCollector.recordRequest(new RequestInfo("register", 223, 11234));
+        metricsCollector.recordRequest(new RequestInfo("register", 323, 12234));
+        metricsCollector.recordRequest(new RequestInfo("login", 23, 12434));
+        metricsCollector.recordRequest(new RequestInfo("login", 1223, 14234));
+
+        Thread.sleep(100000);
+
     }
 }
