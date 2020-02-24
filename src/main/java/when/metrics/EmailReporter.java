@@ -6,30 +6,20 @@ import java.util.*;
  * @author: when
  * @create: 2020-02-24  14:50
  **/
-public class EmailReporter {
+public class EmailReporter extends ScheduledReporter {
     private static final Long DAY_HOURS_IN_SECONDS = 86400L;
 
     private MetricsStore metricsStore;
-    private EmailSender emailSender;
-    private List<String> emailAddresses = new ArrayList<>();
+    private StatViewer statViewer;
+    private Aggregator aggregator;
 
-    public EmailReporter(MetricsStore metricsStore) {
-        this.metricsStore = metricsStore;
-        this.emailSender = new EmailSender();
-    }
-
-    public void addToAddress(String address) {
-        emailAddresses.add(address);
+    public EmailReporter(MetricsStore metricsStore, StatViewer statViewer, Aggregator aggregator) {
+        super(metricsStore, statViewer, aggregator);
     }
 
     public void startDailyReport() {
-        Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.DATE, 1);
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MILLISECOND, 0);
-        Date firstTime = calendar.getTime();
+        Date now = new Date();
+        Date firstTime = trimTimeToZeroOfNextDay(now);
 
         Timer timer = new Timer();
         timer.schedule(new TimerTask() {
@@ -39,19 +29,25 @@ public class EmailReporter {
                 long endTimeMillis = System.currentTimeMillis();
                 long startTimeMillis = endTimeMillis - durationInMillis;
 
-                Map<String, List<RequestInfo>> requestInfos = metricsStore.getRequestInfos(startTimeMillis,
-                        endTimeMillis);
-                Map<String, RequestStat> stats = new HashMap<>();
-                for (Map.Entry<String, List<RequestInfo>> entry : requestInfos.entrySet()) {
-                    String apiName = entry.getKey();
-                    List<RequestInfo> requestInfoPerApi = entry.getValue();
-                    // 根据原始数据计算统计数据
-                    RequestStat requestStat = Aggregator.aggregate(requestInfoPerApi, durationInMillis);
-                    stats.put(apiName, requestStat);
-                }
-
-                // 格式化为html格式，发送邮件。
+                doStatAndReport(startTimeMillis, endTimeMillis);
             }
         }, firstTime, DAY_HOURS_IN_SECONDS * 1000);
+    }
+
+    /**
+     * 获取当前时间下一天的 0 点时间
+     *
+     * @param date
+     * @return
+     */
+    private Date trimTimeToZeroOfNextDay(Date date) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+        calendar.add(Calendar.DATE, 1);
+        calendar.set(Calendar.HOUR_OF_DAY, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+        return calendar.getTime();
     }
 }
